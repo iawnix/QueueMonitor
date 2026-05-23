@@ -17,7 +17,7 @@ jobs:
       - run: flutter create --platforms=android --org io.github.iawnix .
       - run: flutter pub get
       - run: flutter analyze
-      - run: flutter test
+      - run: dart test test/cluster_status_test.dart test/config_repository_test.dart
       - run: flutter build apk --debug
 
   ios:
@@ -30,5 +30,5 @@ jobs:
       - run: flutter create --platforms=ios --org io.github.iawnix .
       - run: flutter pub get
       - run: flutter analyze
-      - run: flutter test
+      - run: dart test test/cluster_status_test.dart test/config_repository_test.dart
       - run: flutter build ios --debug --no-codesign

@@ -170,7 +170,7 @@ class ClusterConfig {
         host: '',
         port: 22,
         user: '',
-        auth: AuthRef(type: AuthType.privateKey, secretId: 'cluster_$id_key'),
+        auth: AuthRef(type: AuthType.privateKey, secretId: 'cluster_${id}_key'),
       ),
       jump: JumpHost.disabled(),
       script: const ScriptConfig(content: defaultStatusScript),

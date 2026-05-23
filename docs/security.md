@@ -8,7 +8,9 @@ QueueMonitor stores connection metadata separately from secrets.
 - Management host, port, and username.
 - Jump host, port, and username.
 - Script content.
-- Secret aliases.
+- Credential aliases (`secret_id` values). These are local names used to find
+  passwords or private keys in secure storage; they are not the secrets
+  themselves.
 
 ## Stored Through `flutter_secure_storage`
 

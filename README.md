@@ -40,8 +40,9 @@ See [docs/protocol.md](docs/protocol.md) and [examples](examples).
 
 Cluster definitions can be entered in the app or imported as JSON. Imported
 config files should not contain private keys, passphrases, or passwords. They
-should reference a local `secret_id`; secrets are entered separately and stored
-with `flutter_secure_storage`.
+should reference a local `secret_id`, which is a credential alias rather than a
+secret value. Passwords and private keys are entered separately and stored with
+`flutter_secure_storage`.
 
 See [docs/config-schema.md](docs/config-schema.md).
 
@@ -54,7 +55,7 @@ generated Android/iOS platform folders are absent, create them once:
 flutter create --platforms=android,ios --org io.github.iawnix .
 flutter pub get
 flutter analyze
-flutter test
+dart test test/cluster_status_test.dart test/config_repository_test.dart
 ```
 
 Then build:
@@ -97,5 +98,5 @@ License. On iOS it uses Keychain; on Android version 10.x uses platform secure
 storage with RSA OAEP and AES-GCM by default. See
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-QueueMonitor also uses `dartssh2` for SSH, `file_picker` for JSON import, and
-`shared_preferences` for non-secret cluster configuration.
+QueueMonitor also uses `dartssh2` for SSH and `shared_preferences` for
+non-secret cluster configuration.

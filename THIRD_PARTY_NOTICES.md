@@ -37,13 +37,6 @@ following references and direct runtime dependencies retain their own notices.
 - Purpose in QueueMonitor: SSH connection, command execution, and jump-host
   forwarding.
 
-## file_picker
-
-- Package: `file_picker`
-- Version range: `^11.0.2`
-- License: MIT
-- Purpose in QueueMonitor: JSON config import on Android and iOS.
-
 ## shared_preferences
 
 - Package: `shared_preferences`

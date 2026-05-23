@@ -1,7 +1,9 @@
 # QueueMonitor Config Schema
 
 Config import is for non-secret structure. Private keys, passphrases, and
-passwords are intentionally excluded.
+passwords are intentionally excluded. `secret_id` is a local credential alias:
+it names where the app should look up the password or private key in
+`flutter_secure_storage`, but it is not itself a secret.
 
 ## Version 1
 
@@ -45,6 +47,10 @@ passwords are intentionally excluded.
 
 - `private_key`: app reads PEM text from secure storage by `secret_id`.
 - `password`: app reads password text from secure storage by `secret_id`.
+
+Use a stable alias such as `lab_mgmt_key` or `jump_password`, then enter the
+matching password or private key on the device. The same alias can be reused by
+multiple cluster entries that intentionally share one credential.
 
 Compatibility aliases accepted by the parser:
 

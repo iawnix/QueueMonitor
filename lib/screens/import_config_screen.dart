@@ -1,6 +1,3 @@
-import 'dart:convert';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../models/cluster_config.dart';
@@ -22,22 +19,6 @@ class _ImportConfigScreenState extends State<ImportConfigScreen> {
   void dispose() {
     _controller.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['json'],
-      withData: true,
-    );
-    final bytes = result?.files.single.bytes;
-    if (bytes == null) {
-      return;
-    }
-    setState(() {
-      _controller.text = utf8.decode(bytes);
-      _error = null;
-    });
   }
 
   Future<void> _import() async {
@@ -64,11 +45,6 @@ class _ImportConfigScreenState extends State<ImportConfigScreen> {
           children: [
             Row(
               children: [
-                FilledButton.icon(
-                  onPressed: _pickFile,
-                  icon: const Icon(Icons.folder_open),
-                  label: const Text('Pick JSON'),
-                ),
                 const Spacer(),
                 FilledButton.icon(
                   onPressed: _import,

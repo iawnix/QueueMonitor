@@ -1,4 +1,4 @@
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:queue_monitor/models/cluster_status.dart';
 
 void main() {

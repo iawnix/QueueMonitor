@@ -332,7 +332,7 @@ class _AuthFields extends StatelessWidget {
           onSelectionChanged: (selected) => onAuthTypeChanged(selected.first),
         ),
         const SizedBox(height: 10),
-        _TextField(controller: secretId, label: 'Secret alias', required: true),
+        _TextField(controller: secretId, label: 'Credential alias', required: true),
         if (authType == AuthType.password)
           TextField(
             controller: password,
