@@ -61,8 +61,8 @@ for line in $nodes; do
   cpu_total=$((cpu_total + node_total))
 done
 
-running=$(qstat -r 2>/dev/null | awk 'NR > 3 {count++} END {print count + 0}')
-queued=$(qstat -i 2>/dev/null | awk 'NR > 3 {count++} END {print count + 0}')
+running=$(qstat -r 2>/dev/null | awk 'NR > 5 {count++} END {print count + 0}')
+queued=$(qstat -i 2>/dev/null | awk 'NR > 5 {count++} END {print count + 0}')
 
 printf '{"schema_version":1,"cluster":"%s","ok":true,"cpu":{"free":%d,"total":%d},"gpu":{"free":0,"total":0},"jobs":{"running":%d,"queued":%d}}\n' \
   "$cluster" "$cpu_free" "$cpu_total" "$running" "$queued"
