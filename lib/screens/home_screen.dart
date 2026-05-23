@@ -4,6 +4,7 @@ import '../models/cluster_config.dart';
 import '../models/cluster_status.dart';
 import '../services/config_repository.dart';
 import '../services/ssh_queue_client.dart';
+import '../widgets/status_metrics.dart';
 import 'cluster_detail_screen.dart';
 import 'cluster_form_screen.dart';
 import 'import_config_screen.dart';
@@ -270,61 +271,10 @@ class _ClusterCard extends StatelessWidget {
                   ),
                 )
               else
-                _Metrics(status: status),
+                StatusMetricGrid(status: status),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _Metrics extends StatelessWidget {
-  const _Metrics({required this.status});
-
-  final ClusterStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        _Metric(label: 'CPU', value: '${status.cpuFree}/${status.cpuTotal}'),
-        _Metric(label: 'GPU', value: '${status.gpuFree}/${status.gpuTotal}'),
-        _Metric(label: 'Run', value: '${status.jobsRunning}'),
-        _Metric(label: 'Queue', value: '${status.jobsQueued}'),
-      ],
-    );
-  }
-}
-
-class _Metric extends StatelessWidget {
-  const _Metric({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 86,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: Theme.of(context).textTheme.labelSmall),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleMedium,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
       ),
     );
   }

@@ -79,3 +79,7 @@ The app marks the cluster offline or failed and shows `stderr` in detail view.
   protocol v1 JSON.
 - `examples/pbs_2w_status.sh`: PBS-style CPU/GPU capacity example that emits
   protocol v1 JSON.
+- `examples/slurm_7q_xiaohe2_status.sh`: Slurm partition CPU capacity example
+  that emits protocol v1 JSON.
+- `examples/slurm_7q_xiaohe_status.sh`: Slurm GPU capacity example that emits
+  protocol v1 JSON.

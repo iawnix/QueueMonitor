@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/cluster_config.dart';
 import '../models/cluster_status.dart';
+import '../widgets/status_metrics.dart';
 
 class ClusterDetailScreen extends StatelessWidget {
   const ClusterDetailScreen({
@@ -81,16 +82,8 @@ class _MetricsPanel extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         child: Column(
           children: [
-            _MetricRow(
-              label: 'CPU free / total',
-              value: '${status.cpuFree}/${status.cpuTotal}',
-            ),
-            _MetricRow(
-              label: 'GPU free / total',
-              value: '${status.gpuFree}/${status.gpuTotal}',
-            ),
-            _MetricRow(label: 'Running jobs', value: '${status.jobsRunning}'),
-            _MetricRow(label: 'Queued jobs', value: '${status.jobsQueued}'),
+            StatusMetricGrid(status: status),
+            const Divider(height: 24),
             _MetricRow(
               label: 'Checked',
               value: status.checkedAt.toLocal().toString(),

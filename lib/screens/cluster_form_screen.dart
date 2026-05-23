@@ -102,11 +102,11 @@ class _ClusterFormScreenState extends State<ClusterFormScreen> {
     }
     final managementAuth = AuthRef(
       type: _authType,
-      secretId: _secretId.text.trim(),
+      secretId: _effectiveSecretId(_secretId, role: 'management'),
     );
     final jumpAuth = AuthRef(
       type: _jumpAuthType,
-      secretId: _jumpSecretId.text.trim(),
+      secretId: _effectiveSecretId(_jumpSecretId, role: 'jump'),
     );
 
     final managementSecretOk = await _ensureSecretAvailable(
@@ -206,6 +206,17 @@ class _ClusterFormScreenState extends State<ClusterFormScreen> {
     return false;
   }
 
+  String _effectiveSecretId(
+    TextEditingController controller, {
+    required String role,
+  }) {
+    final current = controller.text.trim();
+    if (current.isNotEmpty) {
+      return current;
+    }
+    return '${widget.cluster.id}_$role';
+  }
+
   void _showError(String message) {
     if (!mounted) {
       return;
@@ -240,10 +251,13 @@ class _ClusterFormScreenState extends State<ClusterFormScreen> {
           widget.cluster.name.isEmpty ? 'Cluster' : widget.cluster.name,
         ),
         actions: [
-          IconButton(
-            tooltip: 'Save',
-            onPressed: _save,
-            icon: const Icon(Icons.check),
+          Tooltip(
+            message: 'Save',
+            child: TextButton.icon(
+              onPressed: _save,
+              icon: const Icon(Icons.check),
+              label: const Text('Save'),
+            ),
           ),
         ],
       ),
@@ -370,12 +384,6 @@ class _ClusterFormScreenState extends State<ClusterFormScreen> {
               validator: (value) =>
                   (value == null || value.trim().isEmpty) ? 'Required' : null,
             ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: _save,
-              icon: const Icon(Icons.check),
-              label: const Text('Save'),
-            ),
           ],
         ),
       ),
@@ -422,11 +430,18 @@ class _AuthFields extends StatelessWidget {
           selected: {authType},
           onSelectionChanged: (selected) => onAuthTypeChanged(selected.first),
         ),
-        const SizedBox(height: 10),
-        _TextField(
-          controller: secretId,
-          label: 'Credential alias',
-          required: true,
+        ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: EdgeInsets.zero,
+          title: const Text('Advanced credential alias'),
+          children: [
+            _TextField(
+              controller: secretId,
+              label: 'Credential alias',
+              helperText:
+                  'Optional for manual setup; useful for imported configs.',
+            ),
+          ],
         ),
         if (authType == AuthType.password)
           TextField(
@@ -471,6 +486,7 @@ class _TextField extends StatelessWidget {
     this.number = false,
     this.min,
     this.max,
+    this.helperText,
   });
 
   final TextEditingController controller;
@@ -479,6 +495,7 @@ class _TextField extends StatelessWidget {
   final bool number;
   final int? min;
   final int? max;
+  final String? helperText;
 
   @override
   Widget build(BuildContext context) {
@@ -490,6 +507,7 @@ class _TextField extends StatelessWidget {
         decoration: InputDecoration(
           border: const OutlineInputBorder(),
           labelText: label,
+          helperText: helperText,
         ),
         validator: (value) {
           if (required && (value == null || value.trim().isEmpty)) {

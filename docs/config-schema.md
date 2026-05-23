@@ -57,6 +57,11 @@ Use a stable alias such as `lab_mgmt_key` or `jump_password`, then enter the
 matching password or private key on the device. The same alias can be reused by
 multiple cluster entries that intentionally share one credential.
 
+When adding a cluster manually in the app, `secret_id` does not need to be
+entered in the normal flow. QueueMonitor generates a local alias from the
+cluster id. Set it manually only when importing configs, preserving an existing
+alias, or intentionally sharing one credential across entries.
+
 Compatibility aliases accepted by the parser:
 
 - `key` is accepted as `private_key`.
