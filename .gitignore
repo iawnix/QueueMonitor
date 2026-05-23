@@ -1,0 +1,25 @@
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+
+# Generated platform folders may contain local machine state.
+android/.gradle/
+android/local.properties
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+
+# Editors
+.idea/
+.vscode/
+*.iml
+
+# Local secrets and imported keys
+*.pem
+*.key
+*.ppk
+secrets/
+local_config*.json

@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "clusters": [
+    {
+      "id": "cluster_demo",
+      "name": "Demo Cluster",
+      "management": {
+        "host": "mgmt.example.edu",
+        "port": 22,
+        "user": "cluster_user",
+        "auth": {
+          "type": "private_key",
+          "secret_id": "demo_mgmt_key"
+        }
+      },
+      "jump": {
+        "enabled": true,
+        "host": "jump.example.edu",
+        "port": 22,
+        "user": "jump_user",
+        "auth": {
+          "type": "private_key",
+          "secret_id": "demo_jump_key"
+        }
+      },
+      "script": {
+        "mode": "inline",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nprintf '{\"schema_version\":1,\"cluster\":\"demo\",\"ok\":true,\"cpu\":{\"free\":0,\"total\":0},\"gpu\":{\"free\":0,\"total\":0},\"jobs\":{\"running\":0,\"queued\":0}}\\n'\n"
+      },
+      "timeout_sec": 20
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+QueueMonitor
+Copyright (c) 2026 iawnix
+
+QueueMonitor is licensed under the GNU Affero General Public License v3.0.
+It is a clean implementation of a minimal Flutter mobile app for monitoring
+cluster queue capacity through SSH.
+
+Design reference:
+
+- LollipopKit/flutter_server_box
+- https://github.com/LollipopKit/flutter_server_box
+- License: GNU Affero General Public License v3.0
+
+QueueMonitor acknowledges `flutter_server_box` as a reference for the general
+product idea of a Flutter SSH server monitor. QueueMonitor does not copy,
+vendor, translate, or modify source code, UI assets, documentation text, or
+generated files from that project.
+
+Direct dependency relationship:
+
+- flutter_secure_storage
+- https://pub.dev/packages/flutter_secure_storage
+- License: BSD 3-Clause
+
+QueueMonitor uses `flutter_secure_storage` only as a published runtime
+dependency for platform secret storage. QueueMonitor is not affiliated with,
+endorsed by, or derived from `flutter_secure_storage`.
