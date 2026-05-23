@@ -25,8 +25,57 @@ void main() {
 
   test('rejects unsupported schema version', () {
     expect(
-      () => ClusterStatus.fromStdout('{"schema_version": 2}'),
+      () => ClusterStatus.fromStdout('''
+{
+  "schema_version": 2,
+  "cluster": "demo",
+  "ok": true,
+  "cpu": {"free": 0, "total": 0},
+  "gpu": {"free": 0, "total": 0},
+  "jobs": {"running": 0, "queued": 0}
+}
+'''),
       throwsFormatException,
     );
+  });
+
+  test('rejects missing required fields', () {
+    expect(
+      () => ClusterStatus.fromStdout('{"schema_version": 1}'),
+      throwsFormatException,
+    );
+  });
+
+  test('rejects negative or impossible capacity values', () {
+    expect(
+      () => ClusterStatus.fromStdout('''
+{
+  "schema_version": 1,
+  "cluster": "demo",
+  "ok": true,
+  "cpu": {"free": 17, "total": 16},
+  "gpu": {"free": 0, "total": 0},
+  "jobs": {"running": 0, "queued": 0}
+}
+'''),
+      throwsFormatException,
+    );
+  });
+
+  test('ok false is not online', () {
+    final status = ClusterStatus.fromStdout('''
+{
+  "schema_version": 1,
+  "cluster": "demo",
+  "ok": false,
+  "cpu": {"free": 0, "total": 0},
+  "gpu": {"free": 0, "total": 0},
+  "jobs": {"running": 0, "queued": 0}
+}
+''');
+    final result = ClusterPollResult.success(status);
+
+    expect(status.ok, isFalse);
+    expect(result.isOnline, isFalse);
   });
 }

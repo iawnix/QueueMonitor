@@ -44,6 +44,13 @@ class SshQueueClient {
         );
       }
       final status = ClusterStatus.fromStdout(stdout);
+      if (!status.ok) {
+        return ClusterPollResult.failure(
+          error: 'Script reported ok=false',
+          exitCode: result.exitCode,
+          stderr: stderr,
+        );
+      }
       return ClusterPollResult.success(status, stderr: stderr);
     } on TimeoutException {
       return ClusterPollResult.failure(error: 'Connection or script timed out');

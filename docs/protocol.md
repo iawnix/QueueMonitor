@@ -11,6 +11,9 @@ The script must:
 - Exit `0` only when the JSON is valid and complete.
 - Use integer counts, not percentages.
 - Aggregate the whole cluster at management-node level.
+- Fill every schema field with the documented type.
+- Keep count fields non-negative.
+- Keep `cpu.free <= cpu.total` and `gpu.free <= gpu.total`.
 
 The script must not:
 
@@ -44,7 +47,8 @@ The script must not:
 
 - `schema_version`: integer, currently `1`.
 - `cluster`: display name from the script side; the app can still use its local name.
-- `ok`: boolean. `true` means scheduler commands succeeded.
+- `ok`: boolean. `true` means scheduler commands succeeded. `false` is treated
+  as a failed query and the app will not mark the cluster online.
 - `cpu.free`: currently idle CPU cores/slots.
 - `cpu.total`: total CPU cores/slots considered by the script.
 - `gpu.free`: currently idle GPUs.

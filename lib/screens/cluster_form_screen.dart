@@ -109,6 +109,27 @@ class _ClusterFormScreenState extends State<ClusterFormScreen> {
       secretId: _jumpSecretId.text.trim(),
     );
 
+    final managementSecretOk = await _ensureSecretAvailable(
+      managementAuth,
+      password: _password.text,
+      privateKey: _privateKey.text,
+      label: 'management node',
+    );
+    if (!managementSecretOk) {
+      return;
+    }
+    if (_jumpEnabled) {
+      final jumpSecretOk = await _ensureSecretAvailable(
+        jumpAuth,
+        password: _jumpPassword.text,
+        privateKey: _jumpPrivateKey.text,
+        label: 'jump host',
+      );
+      if (!jumpSecretOk) {
+        return;
+      }
+    }
+
     await _persistSecret(
       managementAuth,
       password: _password.text,
@@ -150,6 +171,48 @@ class _ClusterFormScreenState extends State<ClusterFormScreen> {
       return;
     }
     Navigator.of(context).pop(cluster);
+  }
+
+  Future<bool> _ensureSecretAvailable(
+    AuthRef auth, {
+    required String password,
+    required String privateKey,
+    required String label,
+  }) async {
+    if (auth.type == AuthType.password) {
+      if (password.isNotEmpty) {
+        return true;
+      }
+      final existing = await _secretStore.read(auth);
+      if ((existing.password ?? '').isNotEmpty) {
+        return true;
+      }
+      _showError(
+        'Enter a password for $label or use an alias with a saved password.',
+      );
+      return false;
+    }
+
+    if (privateKey.trim().isNotEmpty) {
+      return true;
+    }
+    final existing = await _secretStore.read(auth);
+    if ((existing.privateKeyPem ?? '').trim().isNotEmpty) {
+      return true;
+    }
+    _showError(
+      'Enter a private key for $label or use an alias with a saved key.',
+    );
+    return false;
+  }
+
+  void _showError(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _persistSecret(
@@ -205,6 +268,8 @@ class _ClusterFormScreenState extends State<ClusterFormScreen> {
                     label: 'Port',
                     required: true,
                     number: true,
+                    min: 1,
+                    max: 65535,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -246,6 +311,8 @@ class _ClusterFormScreenState extends State<ClusterFormScreen> {
                       label: 'Port',
                       required: true,
                       number: true,
+                      min: 1,
+                      max: 65535,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -284,6 +351,8 @@ class _ClusterFormScreenState extends State<ClusterFormScreen> {
                     label: 'Timeout',
                     required: true,
                     number: true,
+                    min: 1,
+                    max: 600,
                   ),
                 ),
               ],
@@ -400,12 +469,16 @@ class _TextField extends StatelessWidget {
     required this.label,
     this.required = false,
     this.number = false,
+    this.min,
+    this.max,
   });
 
   final TextEditingController controller;
   final String label;
   final bool required;
   final bool number;
+  final int? min;
+  final int? max;
 
   @override
   Widget build(BuildContext context) {
@@ -424,6 +497,13 @@ class _TextField extends StatelessWidget {
           }
           if (number && int.tryParse(value ?? '') == null) {
             return 'Invalid number';
+          }
+          final numberValue = int.tryParse(value ?? '');
+          if (numberValue != null && min != null && numberValue < min!) {
+            return 'Must be at least $min';
+          }
+          if (numberValue != null && max != null && numberValue > max!) {
+            return 'Must be at most $max';
           }
           return null;
         },

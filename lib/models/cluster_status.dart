@@ -28,40 +28,82 @@ class ClusterStatus {
   final DateTime checkedAt;
 
   factory ClusterStatus.fromStdout(String stdout) {
-    final decoded = jsonDecode(stdout) as Map<String, dynamic>;
-    final cpu = decoded['cpu'] as Map<String, dynamic>? ?? {};
-    final gpu = decoded['gpu'] as Map<String, dynamic>? ?? {};
-    final jobs = decoded['jobs'] as Map<String, dynamic>? ?? {};
-    final version = (decoded['schema_version'] as num?)?.toInt() ?? 0;
+    final decodedRaw = jsonDecode(stdout);
+    if (decodedRaw is! Map<String, dynamic>) {
+      throw const FormatException('stdout must be one JSON object');
+    }
+    final decoded = decodedRaw;
+    final cpu = _requiredObject(decoded, 'cpu');
+    final gpu = _requiredObject(decoded, 'gpu');
+    final jobs = _requiredObject(decoded, 'jobs');
+    final version = _requiredInt(decoded, 'schema_version');
     if (version != 1) {
       throw FormatException('Unsupported schema_version: $version');
     }
+    final ok = _requiredBool(decoded, 'ok');
+    final cpuFree = _requiredInt(cpu, 'cpu.free');
+    final cpuTotal = _requiredInt(cpu, 'cpu.total');
+    final gpuFree = _requiredInt(gpu, 'gpu.free');
+    final gpuTotal = _requiredInt(gpu, 'gpu.total');
+    final jobsRunning = _requiredInt(jobs, 'jobs.running');
+    final jobsQueued = _requiredInt(jobs, 'jobs.queued');
+    _validateCapacity('cpu', cpuFree, cpuTotal);
+    _validateCapacity('gpu', gpuFree, gpuTotal);
     return ClusterStatus(
       schemaVersion: version,
-      cluster: decoded['cluster'] as String? ?? '',
-      ok: decoded['ok'] as bool? ?? true,
-      cpuFree: _asInt(cpu['free']),
-      cpuTotal: _asInt(cpu['total']),
-      gpuFree: _asInt(gpu['free']),
-      gpuTotal: _asInt(gpu['total']),
-      jobsRunning: _asInt(jobs['running']),
-      jobsQueued: _asInt(jobs['queued']),
+      cluster: _requiredString(decoded, 'cluster'),
+      ok: ok,
+      cpuFree: cpuFree,
+      cpuTotal: cpuTotal,
+      gpuFree: gpuFree,
+      gpuTotal: gpuTotal,
+      jobsRunning: jobsRunning,
+      jobsQueued: jobsQueued,
       rawJson: const JsonEncoder.withIndent('  ').convert(decoded),
       checkedAt: DateTime.now(),
     );
   }
 
-  static int _asInt(Object? value) {
-    if (value is int) {
+  static Map<String, dynamic> _requiredObject(
+    Map<String, dynamic> json,
+    String field,
+  ) {
+    final value = json[field];
+    if (value is Map<String, dynamic>) {
       return value;
     }
-    if (value is num) {
-      return value.toInt();
+    throw FormatException('Missing object field: $field');
+  }
+
+  static String _requiredString(Map<String, dynamic> json, String field) {
+    final value = json[field];
+    if (value is String && value.trim().isNotEmpty) {
+      return value;
     }
-    if (value is String) {
-      return int.tryParse(value) ?? 0;
+    throw FormatException('Missing string field: $field');
+  }
+
+  static bool _requiredBool(Map<String, dynamic> json, String field) {
+    final value = json[field];
+    if (value is bool) {
+      return value;
     }
-    return 0;
+    throw FormatException('Missing boolean field: $field');
+  }
+
+  static int _requiredInt(Map<String, dynamic> json, String field) {
+    final key = field.split('.').last;
+    final value = json[key];
+    if (value is int && value >= 0) {
+      return value;
+    }
+    throw FormatException('Missing non-negative integer field: $field');
+  }
+
+  static void _validateCapacity(String label, int free, int total) {
+    if (free > total) {
+      throw FormatException('$label.free cannot exceed $label.total');
+    }
   }
 }
 
@@ -80,7 +122,7 @@ class ClusterPollResult {
   final String stderr;
   final DateTime checkedAt;
 
-  bool get isOnline => status != null && error == null;
+  bool get isOnline => status?.ok == true && error == null;
 
   factory ClusterPollResult.success(
     ClusterStatus status, {
