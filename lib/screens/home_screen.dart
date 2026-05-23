@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/cluster_config.dart';
 import '../models/cluster_status.dart';
 import '../services/config_repository.dart';
+import '../services/secure_secret_store.dart';
 import '../services/ssh_queue_client.dart';
 import '../widgets/status_metrics.dart';
 import 'cluster_detail_screen.dart';
@@ -19,6 +20,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _repository = ConfigRepository();
   final _client = SshQueueClient();
+  final _secretStore = SecureSecretStore();
 
   List<ClusterConfig> _clusters = [];
   Map<String, ClusterPollResult> _results = {};
@@ -52,24 +54,37 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _refreshCluster(ClusterConfig cluster) async {
+  Future<ClusterPollResult> _refreshCluster(ClusterConfig cluster) async {
     setState(() {
       _refreshing = {..._refreshing, cluster.id};
     });
-    final result = await _client.poll(cluster);
-    if (!mounted) {
-      return;
+    try {
+      final result = await _client.poll(cluster);
+      if (mounted) {
+        setState(() {
+          _results = {..._results, cluster.id: result};
+        });
+      }
+      return result;
+    } catch (error) {
+      final result = ClusterPollResult.failure(error: error.toString());
+      if (mounted) {
+        setState(() {
+          _results = {..._results, cluster.id: result};
+        });
+      }
+      return result;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _refreshing = {..._refreshing}..remove(cluster.id);
+        });
+      }
     }
-    setState(() {
-      _results = {..._results, cluster.id: result};
-      _refreshing = {..._refreshing}..remove(cluster.id);
-    });
   }
 
   Future<void> _refreshAll() async {
-    for (final cluster in _clusters) {
-      await _refreshCluster(cluster);
-    }
+    await Future.wait(_clusters.map(_refreshCluster));
   }
 
   Future<void> _openForm([ClusterConfig? cluster]) async {
@@ -90,11 +105,30 @@ class _HomeScreenState extends State<HomeScreen> {
       next.add(edited);
     }
     await _save(next);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _results = {..._results}..remove(edited.id);
+    });
   }
 
   Future<void> _deleteCluster(ClusterConfig cluster) async {
+    final clearCredentials = await _confirmDeleteCluster(cluster);
+    if (clearCredentials == null) {
+      return;
+    }
     final next = _clusters.where((item) => item.id != cluster.id).toList();
     await _save(next);
+    if (clearCredentials) {
+      await _clearUnusedSecrets(cluster, next);
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _results = {..._results}..remove(cluster.id);
+    });
   }
 
   Future<void> _importConfig() async {
@@ -105,6 +139,96 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     await _save(imported);
+    if (!mounted) {
+      return;
+    }
+    final importedIds = imported.map((cluster) => cluster.id).toSet();
+    setState(() {
+      _results = Map.fromEntries(
+        _results.entries.where((entry) => importedIds.contains(entry.key)),
+      );
+    });
+  }
+
+  Future<bool?> _confirmDeleteCluster(ClusterConfig cluster) {
+    var clearCredentials = true;
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Delete cluster?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(_clusterTitle(cluster)),
+              ),
+              const SizedBox(height: 12),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: clearCredentials,
+                onChanged: (value) {
+                  setDialogState(() {
+                    clearCredentials = value ?? true;
+                  });
+                },
+                title: const Text('Clear unused saved credentials'),
+                subtitle: const Text(
+                  'Shared aliases used by other clusters are kept.',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(clearCredentials),
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _clearUnusedSecrets(
+    ClusterConfig deleted,
+    List<ClusterConfig> remaining,
+  ) async {
+    final remainingSecretIds = _secretIdsForClusters(remaining).toSet();
+    final deletedSecretIds = _secretIdsForCluster(deleted).toSet();
+    for (final secretId in deletedSecretIds) {
+      if (!remainingSecretIds.contains(secretId)) {
+        await _secretStore.clearSecret(secretId);
+      }
+    }
+  }
+
+  Iterable<String> _secretIdsForClusters(List<ClusterConfig> clusters) sync* {
+    for (final cluster in clusters) {
+      yield* _secretIdsForCluster(cluster);
+    }
+  }
+
+  Iterable<String> _secretIdsForCluster(ClusterConfig cluster) sync* {
+    final managementId = cluster.management.auth.secretId.trim();
+    if (managementId.isNotEmpty) {
+      yield managementId;
+    }
+    if (cluster.jump.enabled) {
+      final jumpId = cluster.jump.endpoint.auth.secretId.trim();
+      if (jumpId.isNotEmpty) {
+        yield jumpId;
+      }
+    }
+  }
+
+  String _clusterTitle(ClusterConfig cluster) {
+    return cluster.name.isEmpty ? cluster.management.host : cluster.name;
   }
 
   @override
@@ -166,7 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   builder: (_) => ClusterDetailScreen(
                     cluster: cluster,
                     result: _results[cluster.id],
-                    onRefresh: () => _refreshCluster(cluster),
+                    onRefresh: _refreshCluster,
                   ),
                 ),
               );

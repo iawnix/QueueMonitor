@@ -4,7 +4,7 @@ import '../models/cluster_config.dart';
 import '../models/cluster_status.dart';
 import '../widgets/status_metrics.dart';
 
-class ClusterDetailScreen extends StatelessWidget {
+class ClusterDetailScreen extends StatefulWidget {
   const ClusterDetailScreen({
     super.key,
     required this.cluster,
@@ -14,22 +14,64 @@ class ClusterDetailScreen extends StatelessWidget {
 
   final ClusterConfig cluster;
   final ClusterPollResult? result;
-  final Future<void> Function() onRefresh;
+  final Future<ClusterPollResult> Function(ClusterConfig cluster) onRefresh;
+
+  @override
+  State<ClusterDetailScreen> createState() => _ClusterDetailScreenState();
+}
+
+class _ClusterDetailScreenState extends State<ClusterDetailScreen> {
+  late ClusterPollResult? _result;
+  bool _refreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _result = widget.result;
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _refreshing = true;
+    });
+    final result = await widget.onRefresh(widget.cluster);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _result = result;
+      _refreshing = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final status = result?.status;
+    final status = _result?.status;
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          cluster.name.isEmpty ? cluster.management.host : cluster.name,
+          widget.cluster.name.isEmpty
+              ? widget.cluster.management.host
+              : widget.cluster.name,
         ),
         actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: onRefresh,
-            icon: const Icon(Icons.refresh),
-          ),
+          if (_refreshing)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else
+            IconButton(
+              tooltip: 'Refresh',
+              onPressed: _refresh,
+              icon: const Icon(Icons.refresh),
+            ),
         ],
       ),
       body: ListView(
@@ -38,15 +80,15 @@ class ClusterDetailScreen extends StatelessWidget {
           _InfoTile(
             label: 'Management',
             value:
-                '${cluster.management.user}@${cluster.management.host}:${cluster.management.port}',
+                '${widget.cluster.management.user}@${widget.cluster.management.host}:${widget.cluster.management.port}',
           ),
           _InfoTile(
             label: 'Jump host',
-            value: cluster.jump.enabled
-                ? '${cluster.jump.endpoint.user}@${cluster.jump.endpoint.host}:${cluster.jump.endpoint.port}'
+            value: widget.cluster.jump.enabled
+                ? '${widget.cluster.jump.endpoint.user}@${widget.cluster.jump.endpoint.host}:${widget.cluster.jump.endpoint.port}'
                 : 'Disabled',
           ),
-          _InfoTile(label: 'Timeout', value: '${cluster.timeoutSec}s'),
+          _InfoTile(label: 'Timeout', value: '${widget.cluster.timeoutSec}s'),
           const SizedBox(height: 12),
           if (status != null) ...[
             _MetricsPanel(status: status),
@@ -55,13 +97,13 @@ class ClusterDetailScreen extends StatelessWidget {
             const SizedBox(height: 8),
             _CodeBlock(text: status.rawJson),
           ] else ...[
-            _CodeBlock(text: result?.error ?? 'No status yet'),
+            _CodeBlock(text: _result?.error ?? 'No status yet'),
           ],
-          if ((result?.stderr ?? '').isNotEmpty) ...[
+          if ((_result?.stderr ?? '').isNotEmpty) ...[
             const SizedBox(height: 16),
             Text('stderr', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            _CodeBlock(text: result!.stderr),
+            _CodeBlock(text: _result!.stderr),
           ],
         ],
       ),

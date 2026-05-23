@@ -83,3 +83,9 @@ The app marks the cluster offline or failed and shows `stderr` in detail view.
   that emits protocol v1 JSON.
 - `examples/slurm_7q_xiaohe_status.sh`: Slurm GPU capacity example that emits
   protocol v1 JSON.
+- `examples/slurm_8q_xiaohe2_status.sh`: Slurm partition CPU capacity example
+  that emits protocol v1 JSON.
+- `examples/slurm_8q_xiaohe_status.sh`: Slurm GPU capacity example that emits
+  protocol v1 JSON.
+- `examples/nvidia_h200_status.sh`: local `nvidia-smi` GPU availability example
+  that emits protocol v1 JSON.
