@@ -22,7 +22,9 @@ class ConfigRepository {
 
   Future<void> saveClusters(List<ClusterConfig> clusters) async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = jsonEncode(clusters.map((cluster) => cluster.toJson()).toList());
+    final raw = jsonEncode(
+      clusters.map((cluster) => cluster.toJson()).toList(),
+    );
     await prefs.setString(_clustersKey, raw);
   }
 

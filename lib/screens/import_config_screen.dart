@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/cluster_config.dart';
+import '../services/config_file_picker.dart';
 import '../services/config_repository.dart';
 
 class ImportConfigScreen extends StatefulWidget {
@@ -12,8 +14,10 @@ class ImportConfigScreen extends StatefulWidget {
 
 class _ImportConfigScreenState extends State<ImportConfigScreen> {
   final _repository = ConfigRepository();
+  final _filePicker = ConfigFilePicker();
   final _controller = TextEditingController();
   String? _error;
+  bool _picking = false;
 
   @override
   void dispose() {
@@ -35,6 +39,42 @@ class _ImportConfigScreenState extends State<ImportConfigScreen> {
     }
   }
 
+  Future<void> _pickJsonFile() async {
+    setState(() {
+      _picking = true;
+      _error = null;
+    });
+    try {
+      final text = await _filePicker.pickJsonText();
+      if (!mounted) {
+        return;
+      }
+      if (text != null) {
+        _controller.text = text;
+      }
+    } on PlatformException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _error = error.message ?? error.code;
+      });
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _error = error.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _picking = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -45,6 +85,11 @@ class _ImportConfigScreenState extends State<ImportConfigScreen> {
           children: [
             Row(
               children: [
+                OutlinedButton.icon(
+                  onPressed: _picking ? null : _pickJsonFile,
+                  icon: const Icon(Icons.upload_file),
+                  label: Text(_picking ? 'Picking...' : 'Pick JSON'),
+                ),
                 const Spacer(),
                 FilledButton.icon(
                   onPressed: _import,

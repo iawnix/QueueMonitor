@@ -82,7 +82,10 @@ class ClusterPollResult {
 
   bool get isOnline => status != null && error == null;
 
-  factory ClusterPollResult.success(ClusterStatus status, {String stderr = ''}) {
+  factory ClusterPollResult.success(
+    ClusterStatus status, {
+    String stderr = '',
+  }) {
     return ClusterPollResult(
       status: status,
       error: null,

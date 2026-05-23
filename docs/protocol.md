@@ -68,3 +68,8 @@ fi
 ```
 
 The app marks the cluster offline or failed and shows `stderr` in detail view.
+
+## Examples
+
+- `examples/pbs_1w_status.sh`: PBS-style CPU capacity example that emits
+  protocol v1 JSON.

@@ -5,7 +5,8 @@ import 'package:queue_monitor/models/cluster_config.dart';
 
 void main() {
   test('parses jump-host config', () {
-    final raw = jsonDecode('''
+    final raw =
+        jsonDecode('''
 {
   "id": "cluster_demo",
   "name": "Demo",
@@ -25,7 +26,8 @@ void main() {
   "script": {"mode": "inline", "content": "#!/usr/bin/env bash\\n"},
   "timeout_sec": 20
 }
-''') as Map<String, dynamic>;
+''')
+            as Map<String, dynamic>;
 
     final cluster = ClusterConfig.fromJson(raw);
 

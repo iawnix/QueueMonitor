@@ -38,11 +38,14 @@ See [docs/protocol.md](docs/protocol.md) and [examples](examples).
 
 ## Config Import
 
-Cluster definitions can be entered in the app or imported as JSON. Imported
-config files should not contain private keys, passphrases, or passwords. They
-should reference a local `secret_id`, which is a credential alias rather than a
-secret value. Passwords and private keys are entered separately and stored with
-`flutter_secure_storage`.
+Cluster definitions can be entered in the app, pasted as JSON, or imported from
+a local JSON file. QueueMonitor uses the system file picker directly on Android
+and iOS, without an extra Flutter file-picker dependency.
+
+Imported config files should not contain private keys, passphrases, or
+passwords. They should reference a local `secret_id`, which is a credential
+alias rather than a secret value. Passwords and private keys are entered
+separately and stored with `flutter_secure_storage`.
 
 See [docs/config-schema.md](docs/config-schema.md).
 

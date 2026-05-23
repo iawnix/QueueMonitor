@@ -57,9 +57,13 @@ class _ClusterFormScreenState extends State<ClusterFormScreen> {
 
     _jumpEnabled = cluster.jump.enabled;
     _jumpHost = TextEditingController(text: cluster.jump.endpoint.host);
-    _jumpPort = TextEditingController(text: cluster.jump.endpoint.port.toString());
+    _jumpPort = TextEditingController(
+      text: cluster.jump.endpoint.port.toString(),
+    );
     _jumpUser = TextEditingController(text: cluster.jump.endpoint.user);
-    _jumpSecretId = TextEditingController(text: cluster.jump.endpoint.auth.secretId);
+    _jumpSecretId = TextEditingController(
+      text: cluster.jump.endpoint.auth.secretId,
+    );
     _jumpPassword = TextEditingController();
     _jumpPrivateKey = TextEditingController();
     _jumpPassphrase = TextEditingController();
@@ -169,7 +173,9 @@ class _ClusterFormScreenState extends State<ClusterFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.cluster.name.isEmpty ? 'Cluster' : widget.cluster.name),
+        title: Text(
+          widget.cluster.name.isEmpty ? 'Cluster' : widget.cluster.name,
+        ),
         actions: [
           IconButton(
             tooltip: 'Save',
@@ -186,7 +192,11 @@ class _ClusterFormScreenState extends State<ClusterFormScreen> {
             Text('Cluster', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 10),
             _TextField(controller: _name, label: 'Name', required: true),
-            _TextField(controller: _host, label: 'Management host', required: true),
+            _TextField(
+              controller: _host,
+              label: 'Management host',
+              required: true,
+            ),
             Row(
               children: [
                 Expanded(
@@ -199,7 +209,11 @@ class _ClusterFormScreenState extends State<ClusterFormScreen> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _TextField(controller: _user, label: 'User', required: true),
+                  child: _TextField(
+                    controller: _user,
+                    label: 'User',
+                    required: true,
+                  ),
                 ),
               ],
             ),
@@ -219,7 +233,11 @@ class _ClusterFormScreenState extends State<ClusterFormScreen> {
               title: const Text('Jump host'),
             ),
             if (_jumpEnabled) ...[
-              _TextField(controller: _jumpHost, label: 'Jump host', required: true),
+              _TextField(
+                controller: _jumpHost,
+                label: 'Jump host',
+                required: true,
+              ),
               Row(
                 children: [
                   Expanded(
@@ -242,7 +260,8 @@ class _ClusterFormScreenState extends State<ClusterFormScreen> {
               ),
               _AuthFields(
                 authType: _jumpAuthType,
-                onAuthTypeChanged: (value) => setState(() => _jumpAuthType = value),
+                onAuthTypeChanged: (value) =>
+                    setState(() => _jumpAuthType = value),
                 secretId: _jumpSecretId,
                 password: _jumpPassword,
                 privateKey: _jumpPrivateKey,
@@ -253,7 +272,10 @@ class _ClusterFormScreenState extends State<ClusterFormScreen> {
             Row(
               children: [
                 Expanded(
-                  child: Text('Script', style: Theme.of(context).textTheme.titleMedium),
+                  child: Text(
+                    'Script',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                 ),
                 SizedBox(
                   width: 120,
@@ -332,7 +354,11 @@ class _AuthFields extends StatelessWidget {
           onSelectionChanged: (selected) => onAuthTypeChanged(selected.first),
         ),
         const SizedBox(height: 10),
-        _TextField(controller: secretId, label: 'Credential alias', required: true),
+        _TextField(
+          controller: secretId,
+          label: 'Credential alias',
+          required: true,
+        ),
         if (authType == AuthType.password)
           TextField(
             controller: password,

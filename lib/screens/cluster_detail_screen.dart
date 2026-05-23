@@ -20,7 +20,9 @@ class ClusterDetailScreen extends StatelessWidget {
     final status = result?.status;
     return Scaffold(
       appBar: AppBar(
-        title: Text(cluster.name.isEmpty ? cluster.management.host : cluster.name),
+        title: Text(
+          cluster.name.isEmpty ? cluster.management.host : cluster.name,
+        ),
         actions: [
           IconButton(
             tooltip: 'Refresh',
@@ -43,10 +45,7 @@ class ClusterDetailScreen extends StatelessWidget {
                 ? '${cluster.jump.endpoint.user}@${cluster.jump.endpoint.host}:${cluster.jump.endpoint.port}'
                 : 'Disabled',
           ),
-          _InfoTile(
-            label: 'Timeout',
-            value: '${cluster.timeoutSec}s',
-          ),
+          _InfoTile(label: 'Timeout', value: '${cluster.timeoutSec}s'),
           const SizedBox(height: 12),
           if (status != null) ...[
             _MetricsPanel(status: status),
@@ -82,11 +81,20 @@ class _MetricsPanel extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         child: Column(
           children: [
-            _MetricRow(label: 'CPU free / total', value: '${status.cpuFree}/${status.cpuTotal}'),
-            _MetricRow(label: 'GPU free / total', value: '${status.gpuFree}/${status.gpuTotal}'),
+            _MetricRow(
+              label: 'CPU free / total',
+              value: '${status.cpuFree}/${status.cpuTotal}',
+            ),
+            _MetricRow(
+              label: 'GPU free / total',
+              value: '${status.gpuFree}/${status.gpuTotal}',
+            ),
             _MetricRow(label: 'Running jobs', value: '${status.jobsRunning}'),
             _MetricRow(label: 'Queued jobs', value: '${status.jobsQueued}'),
-            _MetricRow(label: 'Checked', value: status.checkedAt.toLocal().toString()),
+            _MetricRow(
+              label: 'Checked',
+              value: status.checkedAt.toLocal().toString(),
+            ),
           ],
         ),
       ),

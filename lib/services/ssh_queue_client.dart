@@ -9,7 +9,7 @@ import 'secure_secret_store.dart';
 
 class SshQueueClient {
   SshQueueClient({SecureSecretStore? secretStore})
-      : _secretStore = secretStore ?? SecureSecretStore();
+    : _secretStore = secretStore ?? SecureSecretStore();
 
   final SecureSecretStore _secretStore;
 
@@ -22,10 +22,7 @@ class SshQueueClient {
       if (cluster.jump.enabled) {
         jumpClient = await _connect(cluster.jump.endpoint).timeout(timeout);
         final forwardedSocket = await jumpClient
-            .forwardLocal(
-              cluster.management.host,
-              cluster.management.port,
-            )
+            .forwardLocal(cluster.management.host, cluster.management.port)
             .timeout(timeout);
         targetClient = await _connectWithSocket(
           forwardedSocket,
@@ -86,15 +83,8 @@ class SshQueueClient {
     if (privateKeyPem == null || privateKeyPem.isEmpty) {
       throw StateError('Missing private key for ${endpoint.auth.secretId}');
     }
-    final keyPairs = SSHKeyPair.fromPem(
-      privateKeyPem,
-      auth.passphrase,
-    );
-    return SSHClient(
-      socket,
-      username: endpoint.user,
-      identities: keyPairs,
-    );
+    final keyPairs = SSHKeyPair.fromPem(privateKeyPem, auth.passphrase);
+    return SSHClient(socket, username: endpoint.user, identities: keyPairs);
   }
 
   String _wrapScript(String script) {

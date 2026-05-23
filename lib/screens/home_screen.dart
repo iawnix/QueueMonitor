@@ -74,7 +74,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openForm([ClusterConfig? cluster]) async {
     final edited = await Navigator.of(context).push<ClusterConfig>(
       MaterialPageRoute(
-        builder: (_) => ClusterFormScreen(cluster: cluster ?? ClusterConfig.empty()),
+        builder: (_) =>
+            ClusterFormScreen(cluster: cluster ?? ClusterConfig.empty()),
       ),
     );
     if (edited == null) {
@@ -202,8 +203,8 @@ class _ClusterCard extends StatelessWidget {
     final color = result == null
         ? Theme.of(context).colorScheme.outline
         : online
-            ? const Color(0xff16a34a)
-            : const Color(0xffdc2626);
+        ? const Color(0xff16a34a)
+        : const Color(0xffdc2626);
     return Card(
       child: InkWell(
         onTap: onOpen,
@@ -219,7 +220,9 @@ class _ClusterCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      cluster.name.isEmpty ? cluster.management.host : cluster.name,
+                      cluster.name.isEmpty
+                          ? cluster.management.host
+                          : cluster.name,
                       style: Theme.of(context).textTheme.titleMedium,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -263,8 +266,8 @@ class _ClusterCard extends StatelessWidget {
                 Text(
                   result?.error ?? 'Not checked',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: result?.error == null ? null : color,
-                      ),
+                    color: result?.error == null ? null : color,
+                  ),
                 )
               else
                 _Metrics(status: status),

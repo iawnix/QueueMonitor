@@ -1,7 +1,4 @@
-enum AuthType {
-  password,
-  privateKey,
-}
+enum AuthType { password, privateKey }
 
 AuthType authTypeFromString(String value) {
   switch (value) {
@@ -23,16 +20,14 @@ String authTypeToString(AuthType type) {
 }
 
 class AuthRef {
-  const AuthRef({
-    required this.type,
-    required this.secretId,
-  });
+  const AuthRef({required this.type, required this.secretId});
 
   final AuthType type;
   final String secretId;
 
   factory AuthRef.fromJson(Map<String, dynamic> json) {
-    final alias = json['secret_id'] ?? json['key_alias'] ?? json['password_alias'];
+    final alias =
+        json['secret_id'] ?? json['key_alias'] ?? json['password_alias'];
     return AuthRef(
       type: authTypeFromString(json['type'] as String? ?? 'private_key'),
       secretId: alias as String? ?? '',
@@ -40,10 +35,7 @@ class AuthRef {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'type': authTypeToString(type),
-      'secret_id': secretId,
-    };
+    return {'type': authTypeToString(type), 'secret_id': secretId};
   }
 }
 
@@ -70,20 +62,12 @@ class SshEndpoint {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'host': host,
-      'port': port,
-      'user': user,
-      'auth': auth.toJson(),
-    };
+    return {'host': host, 'port': port, 'user': user, 'auth': auth.toJson()};
   }
 }
 
 class JumpHost {
-  const JumpHost({
-    required this.enabled,
-    required this.endpoint,
-  });
+  const JumpHost({required this.enabled, required this.endpoint});
 
   final bool enabled;
   final SshEndpoint endpoint;
@@ -114,17 +98,12 @@ class JumpHost {
     if (!enabled) {
       return {'enabled': false};
     }
-    return {
-      'enabled': true,
-      ...endpoint.toJson(),
-    };
+    return {'enabled': true, ...endpoint.toJson()};
   }
 }
 
 class ScriptConfig {
-  const ScriptConfig({
-    required this.content,
-  });
+  const ScriptConfig({required this.content});
 
   final String content;
 
@@ -137,10 +116,7 @@ class ScriptConfig {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'mode': 'inline',
-      'content': content,
-    };
+    return {'mode': 'inline', 'content': content};
   }
 }
 
@@ -180,13 +156,17 @@ class ClusterConfig {
 
   factory ClusterConfig.fromJson(Map<String, dynamic> json) {
     return ClusterConfig(
-      id: json['id'] as String? ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      id:
+          json['id'] as String? ??
+          DateTime.now().microsecondsSinceEpoch.toString(),
       name: json['name'] as String? ?? 'Cluster',
       management: SshEndpoint.fromJson(
         json['management'] as Map<String, dynamic>? ?? {},
       ),
       jump: JumpHost.fromJson(json['jump'] as Map<String, dynamic>?),
-      script: ScriptConfig.fromJson(json['script'] as Map<String, dynamic>? ?? {}),
+      script: ScriptConfig.fromJson(
+        json['script'] as Map<String, dynamic>? ?? {},
+      ),
       timeoutSec: (json['timeout_sec'] as num?)?.toInt() ?? 20,
     );
   }

@@ -3,11 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/cluster_config.dart';
 
 class AuthMaterial {
-  const AuthMaterial({
-    this.password,
-    this.privateKeyPem,
-    this.passphrase,
-  });
+  const AuthMaterial({this.password, this.privateKeyPem, this.passphrase});
 
   final String? password;
   final String? privateKeyPem;
@@ -16,13 +12,15 @@ class AuthMaterial {
 
 class SecureSecretStore {
   SecureSecretStore({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _storage;
 
   static String _passwordKey(String secretId) => 'secret.$secretId.password';
-  static String _keyPemKey(String secretId) => 'secret.$secretId.private_key_pem';
-  static String _passphraseKey(String secretId) => 'secret.$secretId.passphrase';
+  static String _keyPemKey(String secretId) =>
+      'secret.$secretId.private_key_pem';
+  static String _passphraseKey(String secretId) =>
+      'secret.$secretId.passphrase';
 
   Future<AuthMaterial> read(AuthRef ref) async {
     final password = await _storage.read(key: _passwordKey(ref.secretId));
