@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/cluster_config.dart';
+import 'config_export.dart';
 
 class ConfigRepository {
   static const _clustersKey = 'queue_monitor.clusters.v1';
@@ -44,9 +45,6 @@ class ConfigRepository {
   }
 
   String exportJson(List<ClusterConfig> clusters) {
-    return const JsonEncoder.withIndent('  ').convert({
-      'version': 1,
-      'clusters': clusters.map((cluster) => cluster.toJson()).toList(),
-    });
+    return exportConfigJson(clusters);
   }
 }

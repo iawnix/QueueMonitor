@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/cluster_config.dart';
 import '../services/secure_secret_store.dart';
+import 'script_editor_screen.dart';
 
 class ClusterFormScreen extends StatefulWidget {
   const ClusterFormScreen({super.key, required this.cluster});
@@ -171,6 +172,20 @@ class _ClusterFormScreenState extends State<ClusterFormScreen> {
       return;
     }
     Navigator.of(context).pop(cluster);
+  }
+
+  Future<void> _editScript() async {
+    final edited = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => ScriptEditorScreen(initialScript: _script.text),
+      ),
+    );
+    if (edited == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _script.text = edited;
+    });
   }
 
   Future<bool> _ensureSecretAvailable(
@@ -372,21 +387,90 @@ class _ClusterFormScreenState extends State<ClusterFormScreen> {
               ],
             ),
             const SizedBox(height: 10),
-            TextFormField(
-              controller: _script,
-              maxLines: 18,
-              minLines: 10,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Bash script',
-              ),
-              style: const TextStyle(fontFamily: 'monospace'),
-              validator: (value) =>
-                  (value == null || value.trim().isEmpty) ? 'Required' : null,
-            ),
+            _ScriptField(controller: _script, onEdit: _editScript),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ScriptField extends StatelessWidget {
+  const _ScriptField({required this.controller, required this.onEdit});
+
+  final TextEditingController controller;
+  final Future<void> Function() onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    return FormField<String>(
+      validator: (_) => controller.text.trim().isEmpty ? 'Required' : null,
+      builder: (field) {
+        final lineCount = controller.text.isEmpty
+            ? 1
+            : '\n'.allMatches(controller.text).length + 1;
+        final preview = controller.text
+            .split('\n')
+            .take(8)
+            .map((line) => line.isEmpty ? ' ' : line)
+            .join('\n');
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: () async {
+                await onEdit();
+                field.didChange(controller.text);
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: InputDecorator(
+                decoration: InputDecoration(
+                  border: const OutlineInputBorder(),
+                  labelText: 'Bash script',
+                  errorText: field.errorText,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.code),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text('$lineCount lines')),
+                        TextButton.icon(
+                          onPressed: () async {
+                            await onEdit();
+                            field.didChange(controller.text);
+                          },
+                          icon: const Icon(Icons.edit),
+                          label: const Text('Edit'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        preview,
+                        maxLines: 8,
+                        overflow: TextOverflow.fade,
+                        style: const TextStyle(fontFamily: 'monospace'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

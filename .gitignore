@@ -23,3 +23,7 @@ ios/Flutter/ephemeral/
 *.ppk
 secrets/
 local_config*.json
+
+# Local-only QueueMonitor import helper and generated config
+tool/build_queue_monitor_import.py
+tool/queue_monitor_import.json

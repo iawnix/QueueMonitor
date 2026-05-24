@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/cluster_config.dart';
 import '../models/cluster_status.dart';
@@ -150,6 +151,17 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _exportConfig() async {
+    final exported = _repository.exportJson(_clusters);
+    await Clipboard.setData(ClipboardData(text: exported));
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Config copied to clipboard')));
+  }
+
   Future<bool?> _confirmDeleteCluster(ClusterConfig cluster) {
     var clearCredentials = true;
     return showDialog<bool>(
@@ -241,6 +253,11 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: 'Import config',
             onPressed: _importConfig,
             icon: const Icon(Icons.upload_file),
+          ),
+          IconButton(
+            tooltip: 'Export config',
+            onPressed: _loading ? null : _exportConfig,
+            icon: const Icon(Icons.download),
           ),
           IconButton(
             tooltip: 'Refresh all',
