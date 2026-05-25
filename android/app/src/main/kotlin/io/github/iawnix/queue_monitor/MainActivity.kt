@@ -10,6 +10,8 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private var pendingPickResult: MethodChannel.Result? = null
+    private var pendingSaveResult: MethodChannel.Result? = null
+    private var pendingSaveText: String? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -19,6 +21,15 @@ class MainActivity : FlutterActivity() {
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "pickJsonText" -> pickJsonText(result)
+                "saveJsonText" -> {
+                    val fileName = call.argument<String>("file_name") ?: "queue_monitor_config.json"
+                    val text = call.argument<String>("text")
+                    if (text == null) {
+                        result.error("INVALID_ARGUMENT", "Missing JSON text to export.", null)
+                    } else {
+                        saveJsonText(fileName, text, result)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }
@@ -50,13 +61,41 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    @Deprecated("Deprecated in Android framework; kept for FlutterActivity compatibility.")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != REQUEST_CONFIG_FILE) {
+    private fun saveJsonText(fileName: String, text: String, result: MethodChannel.Result) {
+        if (pendingSaveResult != null || pendingPickResult != null) {
+            result.error("BUSY", "A config file operation is already open.", null)
             return
         }
 
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/json"
+            putExtra(Intent.EXTRA_TITLE, fileName)
+            addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        }
+
+        pendingSaveResult = result
+        pendingSaveText = text
+        try {
+            @Suppress("DEPRECATION")
+            startActivityForResult(intent, REQUEST_CONFIG_SAVE)
+        } catch (error: ActivityNotFoundException) {
+            pendingSaveResult = null
+            pendingSaveText = null
+            result.error("NO_FILE_PICKER", "No file export target is available on this device.", null)
+        }
+    }
+
+    @Deprecated("Deprecated in Android framework; kept for FlutterActivity compatibility.")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        when (requestCode) {
+            REQUEST_CONFIG_FILE -> finishPickJsonText(resultCode, data)
+            REQUEST_CONFIG_SAVE -> finishSaveJsonText(resultCode, data)
+        }
+    }
+
+    private fun finishPickJsonText(resultCode: Int, data: Intent?) {
         val result = pendingPickResult ?: return
         pendingPickResult = null
 
@@ -78,14 +117,46 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun finishSaveJsonText(resultCode: Int, data: Intent?) {
+        val result = pendingSaveResult ?: return
+        val text = pendingSaveText
+        pendingSaveResult = null
+        pendingSaveText = null
+
+        if (resultCode != Activity.RESULT_OK) {
+            result.success(false)
+            return
+        }
+
+        val uri = data?.data
+        if (uri == null || text == null) {
+            result.success(false)
+            return
+        }
+
+        try {
+            writeText(uri, text)
+            result.success(true)
+        } catch (error: Exception) {
+            result.error("WRITE_FAILED", error.message ?: "Failed to write config file.", null)
+        }
+    }
+
     private fun readText(uri: Uri): String {
         val stream = contentResolver.openInputStream(uri)
             ?: throw IllegalArgumentException("Selected file cannot be opened.")
         return stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
     }
 
+    private fun writeText(uri: Uri, text: String) {
+        val stream = contentResolver.openOutputStream(uri)
+            ?: throw IllegalArgumentException("Selected file cannot be opened for writing.")
+        stream.bufferedWriter(Charsets.UTF_8).use { it.write(text) }
+    }
+
     companion object {
         private const val CONFIG_FILE_PICKER_CHANNEL = "queue_monitor/config_file_picker"
         private const val REQUEST_CONFIG_FILE = 9210
+        private const val REQUEST_CONFIG_SAVE = 9211
     }
 }

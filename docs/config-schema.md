@@ -5,10 +5,12 @@ passwords are intentionally excluded. `secret_id` is a local credential alias:
 it names where the app should look up the password or private key in
 `flutter_secure_storage`, but it is not itself a secret.
 
-The app supports both paste-based import and local JSON file import. File import
-uses the platform file picker (`ACTION_OPEN_DOCUMENT` on Android and
-`UIDocumentPickerViewController` on iOS) and reads the selected file as UTF-8
-JSON text.
+The app supports paste-based import, local JSON file import, and local JSON
+export. File import uses the platform file picker (`ACTION_OPEN_DOCUMENT` on
+Android and `UIDocumentPickerViewController` on iOS) and reads the selected file
+as UTF-8 JSON text. File export uses `ACTION_CREATE_DOCUMENT` on Android and the
+iOS share sheet so the JSON can be saved to Files. Native export failures fall
+back to copying the JSON to the clipboard.
 
 ## Version 1
 

@@ -42,8 +42,10 @@ Cluster definitions can be entered in the app, pasted as JSON, or imported from
 a local JSON file. QueueMonitor uses the system file picker directly on Android
 and iOS, without an extra Flutter file-picker dependency.
 
-The home screen also has an Export button that copies the current config JSON
-to the clipboard.
+The home screen also has an Export button that writes the current config JSON
+through the system file UI. Android uses the create-document picker; iOS uses
+the share sheet so the file can be saved to Files. If native export fails, the
+JSON is copied to the clipboard as a fallback.
 
 Imported config files should not contain private keys, passphrases, or
 passwords. They should reference a local `secret_id`, which is a credential

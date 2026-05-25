@@ -1,8 +1,12 @@
+import 'dart:collection';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/cluster_config.dart';
 import '../models/cluster_status.dart';
+import '../services/config_file_picker.dart';
 import '../services/config_repository.dart';
 import '../services/secure_secret_store.dart';
 import '../services/ssh_queue_client.dart';
@@ -19,7 +23,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const _maxParallelRefreshes = 3;
+
   final _repository = ConfigRepository();
+  final _filePicker = ConfigFilePicker();
   final _client = SshQueueClient();
   final _secretStore = SecureSecretStore();
 
@@ -27,6 +34,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, ClusterPollResult> _results = {};
   Set<String> _refreshing = {};
   bool _loading = true;
+  bool _exporting = false;
+  bool _refreshingAll = false;
 
   @override
   void initState() {
@@ -55,37 +64,74 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<ClusterPollResult> _pollCluster(ClusterConfig cluster) async {
+    try {
+      return await _client.poll(cluster);
+    } catch (error) {
+      return ClusterPollResult.failure(error: error.toString());
+    }
+  }
+
   Future<ClusterPollResult> _refreshCluster(ClusterConfig cluster) async {
     setState(() {
       _refreshing = {..._refreshing, cluster.id};
     });
-    try {
-      final result = await _client.poll(cluster);
-      if (mounted) {
+
+    final result = await _pollCluster(cluster);
+    if (mounted) {
+      setState(() {
+        _results = {..._results, cluster.id: result};
+        _refreshing = {..._refreshing}..remove(cluster.id);
+      });
+    }
+    return result;
+  }
+
+  Future<void> _refreshAll() async {
+    if (_refreshingAll) {
+      return;
+    }
+
+    final clusters = _clusters
+        .where((cluster) => !_refreshing.contains(cluster.id))
+        .toList(growable: false);
+    if (clusters.isEmpty) {
+      return;
+    }
+
+    final ids = clusters.map((cluster) => cluster.id).toSet();
+    setState(() {
+      _refreshingAll = true;
+      _refreshing = {..._refreshing, ...ids};
+    });
+
+    final queue = Queue<ClusterConfig>.of(clusters);
+    final workerCount = math.min(_maxParallelRefreshes, queue.length);
+
+    Future<void> worker() async {
+      while (queue.isNotEmpty) {
+        final cluster = queue.removeFirst();
+        final result = await _pollCluster(cluster);
+        if (!mounted) {
+          return;
+        }
         setState(() {
           _results = {..._results, cluster.id: result};
-        });
-      }
-      return result;
-    } catch (error) {
-      final result = ClusterPollResult.failure(error: error.toString());
-      if (mounted) {
-        setState(() {
-          _results = {..._results, cluster.id: result};
-        });
-      }
-      return result;
-    } finally {
-      if (mounted) {
-        setState(() {
           _refreshing = {..._refreshing}..remove(cluster.id);
         });
       }
     }
-  }
 
-  Future<void> _refreshAll() async {
-    await Future.wait(_clusters.map(_refreshCluster));
+    try {
+      await Future.wait(List.generate(workerCount, (_) => worker()));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _refreshingAll = false;
+          _refreshing = {..._refreshing}..removeAll(ids);
+        });
+      }
+    }
   }
 
   Future<void> _openForm([ClusterConfig? cluster]) async {
@@ -153,13 +199,47 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _exportConfig() async {
     final exported = _repository.exportJson(_clusters);
+    setState(() {
+      _exporting = true;
+    });
+    try {
+      final saved = await _filePicker.saveJsonText(
+        fileName: 'queue_monitor_config.json',
+        text: exported,
+      );
+      if (!mounted) {
+        return;
+      }
+      if (saved) {
+        _showSnackBar('Config exported as JSON');
+      } else {
+        _showSnackBar('Export cancelled');
+      }
+    } on PlatformException catch (error) {
+      await _copyExportToClipboard(exported, error.message ?? error.code);
+    } on Object catch (error) {
+      await _copyExportToClipboard(exported, error.toString());
+    } finally {
+      if (mounted) {
+        setState(() {
+          _exporting = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _copyExportToClipboard(String exported, String reason) async {
     await Clipboard.setData(ClipboardData(text: exported));
     if (!mounted) {
       return;
     }
+    _showSnackBar('File export failed; config copied to clipboard. $reason');
+  }
+
+  void _showSnackBar(String message) {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Config copied to clipboard')));
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<bool?> _confirmDeleteCluster(ClusterConfig cluster) {
@@ -256,13 +336,25 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             tooltip: 'Export config',
-            onPressed: _loading ? null : _exportConfig,
-            icon: const Icon(Icons.download),
+            onPressed: _loading || _exporting ? null : _exportConfig,
+            icon: _exporting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.download),
           ),
           IconButton(
             tooltip: 'Refresh all',
-            onPressed: _clusters.isEmpty ? null : _refreshAll,
-            icon: const Icon(Icons.refresh),
+            onPressed: _clusters.isEmpty || _refreshingAll ? null : _refreshAll,
+            icon: _refreshingAll
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh),
           ),
         ],
       ),
@@ -294,24 +386,27 @@ class _HomeScreenState extends State<HomeScreen> {
         itemCount: _clusters.length,
         itemBuilder: (context, index) {
           final cluster = _clusters[index];
-          return _ClusterCard(
-            cluster: cluster,
-            result: _results[cluster.id],
-            refreshing: _refreshing.contains(cluster.id),
-            onRefresh: () => _refreshCluster(cluster),
-            onEdit: () => _openForm(cluster),
-            onDelete: () => _deleteCluster(cluster),
-            onOpen: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ClusterDetailScreen(
-                    cluster: cluster,
-                    result: _results[cluster.id],
-                    onRefresh: _refreshCluster,
+          return RepaintBoundary(
+            key: ValueKey(cluster.id),
+            child: _ClusterCard(
+              cluster: cluster,
+              result: _results[cluster.id],
+              refreshing: _refreshing.contains(cluster.id),
+              onRefresh: () => _refreshCluster(cluster),
+              onEdit: () => _openForm(cluster),
+              onDelete: () => _deleteCluster(cluster),
+              onOpen: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ClusterDetailScreen(
+                      cluster: cluster,
+                      result: _results[cluster.id],
+                      onRefresh: _refreshCluster,
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           );
         },
       ),
@@ -369,18 +464,23 @@ class _ClusterCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (refreshing)
-                    const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  else
-                    IconButton(
-                      tooltip: 'Refresh',
-                      onPressed: onRefresh,
-                      icon: const Icon(Icons.refresh),
+                  SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: Center(
+                      child: refreshing
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : IconButton(
+                              tooltip: 'Refresh',
+                              onPressed: onRefresh,
+                              icon: const Icon(Icons.refresh),
+                            ),
                     ),
+                  ),
                   PopupMenuButton<String>(
                     onSelected: (value) {
                       if (value == 'edit') {
