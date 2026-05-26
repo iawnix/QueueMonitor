@@ -31,11 +31,11 @@ class _HomeScreenState extends State<HomeScreen> {
   final _secretStore = SecureSecretStore();
 
   List<ClusterConfig> _clusters = [];
-  Map<String, ClusterPollResult> _results = {};
-  Set<String> _refreshing = {};
+  final Map<String, ValueNotifier<_ClusterCardState>> _clusterStates = {};
+  final Map<String, Future<ClusterPollResult>> _inFlightRefreshes = {};
+  final ValueNotifier<bool> _refreshingAll = ValueNotifier(false);
   bool _loading = true;
   bool _exporting = false;
-  bool _refreshingAll = false;
 
   @override
   void initState() {
@@ -48,6 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) {
       return;
     }
+    _syncClusterStates(clusters);
     setState(() {
       _clusters = clusters;
       _loading = false;
@@ -59,6 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) {
       return;
     }
+    _syncClusterStates(clusters);
     setState(() {
       _clusters = clusters;
     });
@@ -73,37 +75,47 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<ClusterPollResult> _refreshCluster(ClusterConfig cluster) async {
-    setState(() {
-      _refreshing = {..._refreshing, cluster.id};
-    });
-
-    final result = await _pollCluster(cluster);
-    if (mounted) {
-      setState(() {
-        _results = {..._results, cluster.id: result};
-        _refreshing = {..._refreshing}..remove(cluster.id);
-      });
+    final inFlight = _inFlightRefreshes[cluster.id];
+    if (inFlight != null) {
+      return inFlight;
     }
-    return result;
+
+    final refresh = _runClusterRefresh(cluster);
+    _inFlightRefreshes[cluster.id] = refresh;
+    return refresh;
+  }
+
+  Future<ClusterPollResult> _runClusterRefresh(ClusterConfig cluster) async {
+    _setClusterRefreshing(cluster.id, true);
+    try {
+      final result = await _pollCluster(cluster);
+      if (mounted && _clusterStates.containsKey(cluster.id)) {
+        _setClusterState(cluster.id, _ClusterCardState(result: result));
+      }
+      return result;
+    } finally {
+      _inFlightRefreshes.remove(cluster.id);
+      if (mounted && _clusterStates.containsKey(cluster.id)) {
+        _setClusterRefreshing(cluster.id, false);
+      }
+    }
   }
 
   Future<void> _refreshAll() async {
-    if (_refreshingAll) {
+    if (_refreshingAll.value) {
       return;
     }
 
     final clusters = _clusters
-        .where((cluster) => !_refreshing.contains(cluster.id))
+        .where(
+          (cluster) => !(_clusterStates[cluster.id]?.value.refreshing ?? false),
+        )
         .toList(growable: false);
     if (clusters.isEmpty) {
       return;
     }
 
-    final ids = clusters.map((cluster) => cluster.id).toSet();
-    setState(() {
-      _refreshingAll = true;
-      _refreshing = {..._refreshing, ...ids};
-    });
+    _refreshingAll.value = true;
 
     final queue = Queue<ClusterConfig>.of(clusters);
     final workerCount = math.min(_maxParallelRefreshes, queue.length);
@@ -111,14 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Future<void> worker() async {
       while (queue.isNotEmpty) {
         final cluster = queue.removeFirst();
-        final result = await _pollCluster(cluster);
-        if (!mounted) {
-          return;
-        }
-        setState(() {
-          _results = {..._results, cluster.id: result};
-          _refreshing = {..._refreshing}..remove(cluster.id);
-        });
+        await _refreshCluster(cluster);
       }
     }
 
@@ -126,11 +131,43 @@ class _HomeScreenState extends State<HomeScreen> {
       await Future.wait(List.generate(workerCount, (_) => worker()));
     } finally {
       if (mounted) {
-        setState(() {
-          _refreshingAll = false;
-          _refreshing = {..._refreshing}..removeAll(ids);
-        });
+        _refreshingAll.value = false;
       }
+    }
+  }
+
+  ValueNotifier<_ClusterCardState> _clusterStateFor(String clusterId) {
+    return _clusterStates.putIfAbsent(
+      clusterId,
+      () => ValueNotifier(const _ClusterCardState()),
+    );
+  }
+
+  void _setClusterState(String clusterId, _ClusterCardState state) {
+    _clusterStateFor(clusterId).value = state;
+  }
+
+  void _setClusterRefreshing(String clusterId, bool refreshing) {
+    final notifier = _clusterStateFor(clusterId);
+    final state = notifier.value;
+    if (state.refreshing == refreshing) {
+      return;
+    }
+    notifier.value = _ClusterCardState(
+      result: state.result,
+      refreshing: refreshing,
+    );
+  }
+
+  void _syncClusterStates(List<ClusterConfig> clusters) {
+    final currentIds = clusters.map((cluster) => cluster.id).toSet();
+    for (final id in _clusterStates.keys.toList()) {
+      if (!currentIds.contains(id)) {
+        _clusterStates.remove(id)?.dispose();
+      }
+    }
+    for (final cluster in clusters) {
+      _clusterStateFor(cluster.id);
     }
   }
 
@@ -155,9 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) {
       return;
     }
-    setState(() {
-      _results = {..._results}..remove(edited.id);
-    });
+    _setClusterState(edited.id, const _ClusterCardState());
   }
 
   Future<void> _deleteCluster(ClusterConfig cluster) async {
@@ -173,9 +208,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) {
       return;
     }
-    setState(() {
-      _results = {..._results}..remove(cluster.id);
-    });
   }
 
   Future<void> _importConfig() async {
@@ -186,15 +218,6 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     await _save(imported);
-    if (!mounted) {
-      return;
-    }
-    final importedIds = imported.map((cluster) => cluster.id).toSet();
-    setState(() {
-      _results = Map.fromEntries(
-        _results.entries.where((entry) => importedIds.contains(entry.key)),
-      );
-    });
   }
 
   Future<void> _exportConfig() async {
@@ -324,6 +347,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  void dispose() {
+    for (final notifier in _clusterStates.values) {
+      notifier.dispose();
+    }
+    _refreshingAll.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -345,16 +377,23 @@ class _HomeScreenState extends State<HomeScreen> {
                   )
                 : const Icon(Icons.download),
           ),
-          IconButton(
-            tooltip: 'Refresh all',
-            onPressed: _clusters.isEmpty || _refreshingAll ? null : _refreshAll,
-            icon: _refreshingAll
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.refresh),
+          ValueListenableBuilder<bool>(
+            valueListenable: _refreshingAll,
+            builder: (context, refreshingAll, _) {
+              return IconButton(
+                tooltip: 'Refresh all',
+                onPressed: _clusters.isEmpty || refreshingAll
+                    ? null
+                    : _refreshAll,
+                icon: refreshingAll
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
+              );
+            },
           ),
         ],
       ),
@@ -388,22 +427,27 @@ class _HomeScreenState extends State<HomeScreen> {
           final cluster = _clusters[index];
           return RepaintBoundary(
             key: ValueKey(cluster.id),
-            child: _ClusterCard(
-              cluster: cluster,
-              result: _results[cluster.id],
-              refreshing: _refreshing.contains(cluster.id),
-              onRefresh: () => _refreshCluster(cluster),
-              onEdit: () => _openForm(cluster),
-              onDelete: () => _deleteCluster(cluster),
-              onOpen: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ClusterDetailScreen(
-                      cluster: cluster,
-                      result: _results[cluster.id],
-                      onRefresh: _refreshCluster,
-                    ),
-                  ),
+            child: ValueListenableBuilder<_ClusterCardState>(
+              valueListenable: _clusterStateFor(cluster.id),
+              builder: (context, state, _) {
+                return _ClusterCard(
+                  cluster: cluster,
+                  result: state.result,
+                  refreshing: state.refreshing,
+                  onRefresh: () => _refreshCluster(cluster),
+                  onEdit: () => _openForm(cluster),
+                  onDelete: () => _deleteCluster(cluster),
+                  onOpen: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ClusterDetailScreen(
+                          cluster: cluster,
+                          result: state.result,
+                          onRefresh: _refreshCluster,
+                        ),
+                      ),
+                    );
+                  },
                 );
               },
             ),
@@ -412,6 +456,13 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
+
+class _ClusterCardState {
+  const _ClusterCardState({this.result, this.refreshing = false});
+
+  final ClusterPollResult? result;
+  final bool refreshing;
 }
 
 class _ClusterCard extends StatelessWidget {
