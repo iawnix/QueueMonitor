@@ -1,6 +1,3 @@
-import 'dart:collection';
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -16,19 +13,19 @@ import 'cluster_form_screen.dart';
 import 'import_config_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, required this.onThemeModeChanged});
+
+  final ValueChanged<ThemeMode> onThemeModeChanged;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const _maxParallelRefreshes = 3;
-
-  final _repository = ConfigRepository();
   final _filePicker = ConfigFilePicker();
   final _client = SshQueueClient();
   final _secretStore = SecureSecretStore();
+  late final _repository = ConfigRepository(secretStore: _secretStore);
 
   List<ClusterConfig> _clusters = [];
   final Map<String, ValueNotifier<_ClusterCardState>> _clusterStates = {};
@@ -90,7 +87,10 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final result = await _pollCluster(cluster);
       if (mounted && _clusterStates.containsKey(cluster.id)) {
-        _setClusterState(cluster.id, _ClusterCardState(result: result));
+        _setClusterState(
+          cluster.id,
+          _ClusterCardState(result: result, updatedAt: DateTime.now()),
+        );
       }
       return result;
     } finally {
@@ -117,18 +117,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _refreshingAll.value = true;
 
-    final queue = Queue<ClusterConfig>.of(clusters);
-    final workerCount = math.min(_maxParallelRefreshes, queue.length);
-
-    Future<void> worker() async {
-      while (queue.isNotEmpty) {
-        final cluster = queue.removeFirst();
+    try {
+      for (final cluster in clusters) {
         await _refreshCluster(cluster);
       }
-    }
-
-    try {
-      await Future.wait(List.generate(workerCount, (_) => worker()));
     } finally {
       if (mounted) {
         _refreshingAll.value = false;
@@ -155,6 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     notifier.value = _ClusterCardState(
       result: state.result,
+      updatedAt: state.updatedAt,
       refreshing: refreshing,
     );
   }
@@ -366,6 +359,18 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: _importConfig,
             icon: const Icon(Icons.upload_file),
           ),
+          Builder(
+            builder: (context) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              return IconButton(
+                tooltip: isDark ? 'Use light theme' : 'Use dark theme',
+                onPressed: () => widget.onThemeModeChanged(
+                  isDark ? ThemeMode.light : ThemeMode.dark,
+                ),
+                icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Export config',
             onPressed: _loading || _exporting ? null : _exportConfig,
@@ -418,50 +423,52 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
-    return RefreshIndicator(
-      onRefresh: _refreshAll,
-      child: ListView.builder(
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: _clusters.length,
-        itemBuilder: (context, index) {
-          final cluster = _clusters[index];
-          return RepaintBoundary(
-            key: ValueKey(cluster.id),
-            child: ValueListenableBuilder<_ClusterCardState>(
-              valueListenable: _clusterStateFor(cluster.id),
-              builder: (context, state, _) {
-                return _ClusterCard(
-                  cluster: cluster,
-                  result: state.result,
-                  refreshing: state.refreshing,
-                  onRefresh: () => _refreshCluster(cluster),
-                  onEdit: () => _openForm(cluster),
-                  onDelete: () => _deleteCluster(cluster),
-                  onOpen: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ClusterDetailScreen(
-                          cluster: cluster,
-                          result: state.result,
-                          onRefresh: _refreshCluster,
-                        ),
+    return ListView.builder(
+      itemCount: _clusters.length,
+      itemBuilder: (context, index) {
+        final cluster = _clusters[index];
+        return RepaintBoundary(
+          key: ValueKey(cluster.id),
+          child: ValueListenableBuilder<_ClusterCardState>(
+            valueListenable: _clusterStateFor(cluster.id),
+            builder: (context, state, _) {
+              return _ClusterCard(
+                cluster: cluster,
+                result: state.result,
+                updatedAt: state.updatedAt,
+                refreshing: state.refreshing,
+                onRefresh: () => _refreshCluster(cluster),
+                onEdit: () => _openForm(cluster),
+                onDelete: () => _deleteCluster(cluster),
+                onOpen: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ClusterDetailScreen(
+                        cluster: cluster,
+                        result: state.result,
+                        onRefresh: _refreshCluster,
                       ),
-                    );
-                  },
-                );
-              },
-            ),
-          );
-        },
-      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }
 
 class _ClusterCardState {
-  const _ClusterCardState({this.result, this.refreshing = false});
+  const _ClusterCardState({
+    this.result,
+    this.updatedAt,
+    this.refreshing = false,
+  });
 
   final ClusterPollResult? result;
+  final DateTime? updatedAt;
   final bool refreshing;
 }
 
@@ -469,6 +476,7 @@ class _ClusterCard extends StatelessWidget {
   const _ClusterCard({
     required this.cluster,
     required this.result,
+    required this.updatedAt,
     required this.refreshing,
     required this.onRefresh,
     required this.onEdit,
@@ -478,6 +486,7 @@ class _ClusterCard extends StatelessWidget {
 
   final ClusterConfig cluster;
   final ClusterPollResult? result;
+  final DateTime? updatedAt;
   final bool refreshing;
   final VoidCallback onRefresh;
   final VoidCallback onEdit;
@@ -549,8 +558,7 @@ class _ClusterCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '${cluster.management.user}@${cluster.management.host}:${cluster.management.port}'
-                '${cluster.jump.enabled ? ' via ${cluster.jump.endpoint.host}' : ''}',
+                _updatedAtText(),
                 style: Theme.of(context).textTheme.bodySmall,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -569,5 +577,18 @@ class _ClusterCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _updatedAtText() {
+    final updatedAt = this.updatedAt;
+    if (updatedAt == null) {
+      return 'Not updated yet';
+    }
+    final local = updatedAt.toLocal();
+    return 'Updated ${local.year.toString().padLeft(4, '0')}-'
+        '${local.month.toString().padLeft(2, '0')}-'
+        '${local.day.toString().padLeft(2, '0')} '
+        '${local.hour.toString().padLeft(2, '0')}:'
+        '${local.minute.toString().padLeft(2, '0')}';
   }
 }

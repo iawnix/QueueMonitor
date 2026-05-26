@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../models/cluster_config.dart';
 import '../services/config_file_picker.dart';
 import '../services/config_repository.dart';
+import '../services/secure_secret_store.dart';
 
 class ImportConfigScreen extends StatefulWidget {
   const ImportConfigScreen({super.key});
@@ -13,7 +14,7 @@ class ImportConfigScreen extends StatefulWidget {
 }
 
 class _ImportConfigScreenState extends State<ImportConfigScreen> {
-  final _repository = ConfigRepository();
+  final _repository = ConfigRepository(secretStore: SecureSecretStore());
   final _filePicker = ConfigFilePicker();
   final _controller = TextEditingController();
   String? _error;

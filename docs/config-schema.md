@@ -1,9 +1,10 @@
 # QueueMonitor Config Schema
 
-Config import is for non-secret structure. Private keys, passphrases, and
-passwords are intentionally excluded. `secret_id` is a local credential alias:
-it names where the app should look up the password or private key in
-`flutter_secure_storage`, but it is not itself a secret.
+Config export is non-secret: private keys, passphrases, and passwords are
+intentionally excluded. Import can optionally accept an `auth.password` field
+for private handoff files. Imported passwords are written to
+`flutter_secure_storage`; they are not saved back into normal app preferences
+or exported later.
 
 The app supports paste-based import, local JSON file import, and local JSON
 export. File import uses the platform file picker (`ACTION_OPEN_DOCUMENT` on
@@ -26,8 +27,8 @@ back to copying the JSON to the clipboard.
         "port": 22,
         "user": "iaw",
         "auth": {
-          "type": "private_key",
-          "secret_id": "example_mgmt_key"
+          "type": "password",
+          "password": "SERVER_PASSWORD_REPLACE_ME"
         }
       },
       "jump": {
@@ -36,8 +37,8 @@ back to copying the JSON to the clipboard.
         "port": 22,
         "user": "iaw",
         "auth": {
-          "type": "private_key",
-          "secret_id": "example_jump_key"
+          "type": "password",
+          "password": "JUMP_HOST_PASSWORD_REPLACE_ME"
         }
       },
       "script": {
@@ -54,6 +55,21 @@ back to copying the JSON to the clipboard.
 
 - `private_key`: app reads PEM text from secure storage by `secret_id`.
 - `password`: app reads password text from secure storage by `secret_id`.
+
+For a private handoff file, a password auth object may include a direct
+import-only password:
+
+```json
+{
+  "type": "password",
+  "password": "SERVER_PASSWORD_REPLACE_ME"
+}
+```
+
+If `secret_id` is omitted, QueueMonitor generates an internal local alias when
+importing. The recipient can edit only `password` placeholders and leave aliases
+alone. Do not put such a file in GitHub, chat logs, issue trackers, or public
+storage.
 
 Use a stable alias such as `lab_mgmt_key` or `jump_password`, then enter the
 matching password or private key on the device. The same alias can be reused by

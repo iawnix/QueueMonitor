@@ -1,16 +1,9 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/cluster_config.dart';
+import 'secret_store.dart';
 
-class AuthMaterial {
-  const AuthMaterial({this.password, this.privateKeyPem, this.passphrase});
-
-  final String? password;
-  final String? privateKeyPem;
-  final String? passphrase;
-}
-
-class SecureSecretStore {
+class SecureSecretStore implements SecretStore {
   SecureSecretStore({FlutterSecureStorage? storage})
     : _storage = storage ?? const FlutterSecureStorage();
 
@@ -22,6 +15,7 @@ class SecureSecretStore {
   static String _passphraseKey(String secretId) =>
       'secret.$secretId.passphrase';
 
+  @override
   Future<AuthMaterial> read(AuthRef ref) async {
     final password = await _storage.read(key: _passwordKey(ref.secretId));
     final privateKeyPem = await _storage.read(key: _keyPemKey(ref.secretId));
@@ -33,10 +27,12 @@ class SecureSecretStore {
     );
   }
 
+  @override
   Future<void> writePassword(String secretId, String password) async {
     await _storage.write(key: _passwordKey(secretId), value: password);
   }
 
+  @override
   Future<void> writePrivateKey(
     String secretId,
     String privateKeyPem, {
@@ -48,6 +44,7 @@ class SecureSecretStore {
     }
   }
 
+  @override
   Future<void> clearSecret(String secretId) async {
     await _storage.delete(key: _passwordKey(secretId));
     await _storage.delete(key: _keyPemKey(secretId));

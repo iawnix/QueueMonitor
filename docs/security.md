@@ -28,7 +28,10 @@ source, attribution, and AGPL obligations.
 
 ## Operational Rules
 
-- Do not put real secrets in imported config files.
+- Prefer secret-free imported config files when possible.
+- If a private handoff file uses import-only `auth.password` fields, keep it
+  local, ignored by Git, and out of GitHub, chat logs, issue trackers, and
+  public storage.
 - Do not commit imported local config files.
 - Rotate any password, token, or mail authorization code that has been pasted
   into a chat, issue, or repository by mistake.

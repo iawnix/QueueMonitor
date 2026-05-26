@@ -47,10 +47,12 @@ through the system file UI. Android uses the create-document picker; iOS uses
 the share sheet so the file can be saved to Files. If native export fails, the
 JSON is copied to the clipboard as a fallback.
 
-Imported config files should not contain private keys, passphrases, or
-passwords. They should reference a local `secret_id`, which is a credential
-alias rather than a secret value. Passwords and private keys are entered
-separately and stored with `flutter_secure_storage`.
+Exported config files do not contain private keys, passphrases, or passwords.
+For a private handoff file, imported password auth objects may include an
+import-only `password` placeholder. QueueMonitor writes imported passwords to
+`flutter_secure_storage`, then keeps normal app config and future exports
+secret-free. Keep handoff files with real passwords out of GitHub and public
+storage.
 
 See [docs/config-schema.md](docs/config-schema.md).
 

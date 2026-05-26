@@ -4,9 +4,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/cluster_config.dart';
 import 'config_export.dart';
+import 'config_import.dart';
+import 'secret_store.dart';
 
 class ConfigRepository {
+  ConfigRepository({SecretStore? secretStore}) : _secretStore = secretStore;
+
   static const _clustersKey = 'queue_monitor.clusters.v1';
+
+  final SecretStore? _secretStore;
 
   Future<List<ClusterConfig>> loadClusters() async {
     final prefs = await SharedPreferences.getInstance();
@@ -30,18 +36,16 @@ class ConfigRepository {
   }
 
   Future<List<ClusterConfig>> importJson(String rawJson) async {
-    final decoded = jsonDecode(rawJson) as Map<String, dynamic>;
-    final version = (decoded['version'] as num?)?.toInt() ?? 1;
-    if (version != 1) {
-      throw FormatException('Unsupported config version: $version');
+    final imported = parseImportedConfigJson(rawJson);
+    if (imported.passwords.isNotEmpty) {
+      final secretStore = _secretStore;
+      if (secretStore == null) {
+        throw StateError('Password import requires a secret store');
+      }
+      await storeImportedPasswords(imported.passwords, secretStore);
     }
-    final clustersRaw = decoded['clusters'] as List<dynamic>? ?? [];
-    final clusters = clustersRaw
-        .cast<Map<String, dynamic>>()
-        .map(ClusterConfig.fromJson)
-        .toList(growable: false);
-    await saveClusters(clusters);
-    return clusters;
+    await saveClusters(imported.clusters);
+    return imported.clusters;
   }
 
   String exportJson(List<ClusterConfig> clusters) {
